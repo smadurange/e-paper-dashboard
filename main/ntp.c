@@ -21,11 +21,10 @@ void ntp_init(void)
 void ntp_sync(void)
 {
 	int retry = 0;
-    const int retry_count = 15;
+	const int retry_count = 15;
 
-    while (esp_netif_sntp_sync_wait(2000 / portTICK_PERIOD_MS) == ESP_ERR_TIMEOUT && ++retry < retry_count) {
-        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
-	}
+	while (esp_netif_sntp_sync_wait(2000 / portTICK_PERIOD_MS) == ESP_ERR_TIMEOUT && ++retry < retry_count)
+		ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
 
 	ESP_LOGI(TAG, "System time set.");
 }
