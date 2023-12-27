@@ -1,8 +1,7 @@
 """
-Converts input image to a c header with image data for
-Waveshare 7.5-inch e-paper display (V2) using ImageMagick.
+Converts glyphs in the current directory to a C header.
 
-Usage: python -m imgtool image.jpg offset_x offset_y
+Usage: python -m fonttool font_24.h 24
 """
 
 import os
