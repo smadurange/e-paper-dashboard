@@ -6,7 +6,7 @@ ESP-32 application for displaying stock market data, weather data, date and news
 
  - ESP-32-WROOM microcontroller
  - Waveshare 7.5-inch V2 e-paper display HAT
- - DHT22 temperature and humidity sendor
+ - DHT22 temperature and humidity sensor
 
 ## Utilities
 
