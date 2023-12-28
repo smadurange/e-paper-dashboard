@@ -8,24 +8,23 @@
 #include <esp_http_client.h>
 #include <sys/param.h>
 
-#include "rss.h"
+#include "news.h"
 
 #define MAXLEN 12
 
-extern const char rss_cert_pem_start[] asm("_binary_rss_cert_pem_start");
-extern const char rss_cert_pem_end[]   asm("_binary_rss_cert_pem_end");
+extern const char news_cert_pem_start[] asm("_binary_news_cert_pem_start");
+extern const char news_cert_pem_end[]   asm("_binary_news_cert_pem_end");
 
-static const char* TAG = "rss";
+static const char* TAG = "news";
 static esp_http_client_handle_t http_client;
 
-static int rss_i = 0;
-static int rss_len = 0;
-static struct rss_item *rss_items[MAXLEN];
+static int news_local_i = 0;
+static int news_local_len = 0;
+static struct news_item *news_local[MAXLEN];
 
-static inline int is_blank(char c)
-{
-	return c == ' ' || c == '\t' || c == '\r' || c == '\n'; 
-}
+static int news_world_i = 0;
+static int news_world_len = 0;
+static struct news_item *news_world[MAXLEN];
 
 static inline void copy(char *src, char *dst, int i, int j)
 {
@@ -118,27 +117,26 @@ start:
 	}
 }
 
-static inline void delete(void)
+static inline void delete(struct news_item **news, int *news_len, int *news_i)
 {
-	for (int i = 0; i < rss_len; i++) {
-		free(rss_items[i]->title);
-		free(rss_items[i]->description);
-		free(rss_items[i]);
+	for (int i = 0; i < *news_len; i++) {
+		free(news[i]->title);
+		free(news[i]);
 	}
 
-	rss_i = 0;
-	rss_len = 0;
+	*news_i = 0;
+	*news_len = 0;
 }
 
-static inline void parse(char *xml)
+static inline void parse(char *xml, struct news_item **news, int *news_len, int *news_i)
 {
 	char *s;
 	int i, j, rc;
-	struct rss_item *item;
+	struct news_item *item;
 	
 	s = xml;
 
-	delete();
+	delete(news, news_len, news_i);
 	
 	// skip the main titles
 	search(s, "<title>", "</title>", &i, &j);
@@ -146,12 +144,12 @@ static inline void parse(char *xml)
 	search(s, "<title>", "</title>", &i, &j);
 	s += j + 1;
 
-	for (rss_len = 0; rss_len < MAXLEN; rss_len++) {
+	for (*news_len = 0; *news_len < MAXLEN; (*news_len)++) {
 		rc = search(s, "<title>", "</title>", &i, &j);
 		if (rc > 0) {
-			item = malloc(sizeof(struct rss_item));
+			item = malloc(sizeof(struct news_item));
 			if (!item) {
-				ESP_LOGE(TAG, "malloc() failed for rss item");
+				ESP_LOGE(TAG, "malloc() failed for news item");
 				break;
 			}
 
@@ -164,24 +162,7 @@ static inline void parse(char *xml)
 			
 			copy(s, item->title, i, j);
 			s += j + 1;
-
-			rc = search(s, "<description>", "</description>", &i, &j);
-			if (rc < 0) {
-				item->description = NULL;
-			} else {
-				item->description = malloc(sizeof(char) * (j - i + 2));
-				if (!item->description) {
-					ESP_LOGE(TAG, "malloc() failed for description");
-					free(item->title);
-					free(item);
-					break;
-				}
-
-				copy(s, item->description, i, j);		
-			}
-
-			s += j + 1;
-			rss_items[rss_len] = item;
+			news[*news_len] = item;
 		}
 	}
 }
@@ -242,25 +223,40 @@ static esp_err_t http_evt_handler(esp_http_client_event_t *evt)
 	return ESP_OK;
 }
 
-struct rss_item * rss_get_item(void)
+struct news_item * news_local_get(void)
 {
-	struct rss_item *item = NULL;
+	struct news_item *item = NULL;
 
-	if (rss_i < rss_len) {
-		item = rss_items[rss_i];
-		rss_i = (rss_i + 1) % rss_len;
+	if (news_local_i < news_local_len) {
+		item = news_local[news_local_i];
+		news_local_i = (news_local_i + 1) % news_local_len;
 	}
+
 	return item;
 }
 
-void rss_update(void)
+struct news_item * news_world_get(void)
+{
+	struct news_item *item = NULL;
+
+	if (news_world_i < news_world_len) {
+		item = news_world[news_world_i];
+		news_world_i = (news_world_i + 1) % news_world_len;
+	}
+
+	return item;
+}
+
+void news_update(void)
 {
 	char *buf;
 	esp_err_t rc;
 
 	buf = NULL;
-	esp_http_client_set_user_data(http_client, &buf);	
+	esp_http_client_set_user_data(http_client, &buf);
 
+	// local news
+	esp_http_client_set_url(http_client, "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=10416");
 	for(;;) {
 		rc = esp_http_client_perform(http_client);
 		if (rc != ESP_ERR_HTTP_EAGAIN)
@@ -268,23 +264,36 @@ void rss_update(void)
 		vTaskDelay((TickType_t) 100 / portTICK_PERIOD_MS);
 	}
 
-	parse(buf);
+	parse(buf, news_local, &news_local_len, &news_local_i);
+	free(buf);
+	buf = NULL;
+
+	// world news
+	esp_http_client_set_url(http_client, "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6311");
+	for(;;) {
+		rc = esp_http_client_perform(http_client);
+		if (rc != ESP_ERR_HTTP_EAGAIN)
+			break;
+		vTaskDelay((TickType_t) 100 / portTICK_PERIOD_MS);
+	}
+
+	parse(buf, news_world, &news_world_len, &news_world_i);
 	free(buf);
 }
 
-void rss_init(void)
+void news_init(void)
 {
 	esp_http_client_config_t conf = {
-		.url = "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=10416",
+		.url = "https://www.channelnewsasia.com",
 		.is_async = true,
 		.timeout_ms = 5000,
 		.event_handler = http_evt_handler,
-		.cert_pem = rss_cert_pem_start,
+		.cert_pem = news_cert_pem_start,
 		.disable_auto_redirect = true,
 	};
 
 	http_client = esp_http_client_init(&conf);
 	esp_http_client_set_header(http_client, "Accept", "application/rss+xml");
 
-	rss_update();
+	news_update();
 }

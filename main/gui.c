@@ -902,7 +902,7 @@ int gui_draw_str(struct scrn *sc, const char *s, int x0, int y0, int x_max, int 
 		}
 	}
 
-	return y;
+	return y + sp.height;
 } 
 
 void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
@@ -917,7 +917,7 @@ void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 	int col_n = x_max - x_min;
 	int row_n = y_max - y_min;
 
-	int line_width = 4;
+	int line_width = 3;
 
 	int price_min = data->price_ref < data->price_min
 	                    ? data->price_ref
@@ -927,7 +927,9 @@ void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 	                    ? data->price_ref
 	                    : data->price_max;
 
-	int x_step = col_n / data->prices_len;
+	int x_step = col_n % data->prices_len >= data->prices_len / 2
+	                 ?  col_n / data->prices_len + 1
+	                 : col_n / data->prices_len;
 	if (x_step == 0)
 		x_step = 1;
 	

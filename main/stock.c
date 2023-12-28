@@ -259,7 +259,7 @@ void stock_init(void)
 			return;
 		}
 
-		stocks[i]->name = malloc(sizeof(char) * 15);
+		stocks[i]->name = malloc(sizeof(char) * NAME_LEN);
 		stocks[i]->prices = malloc(sizeof(int) * TIMESERIES_LEN);
 		stocks[i]->prices_len = TIMESERIES_LEN;
 	}
