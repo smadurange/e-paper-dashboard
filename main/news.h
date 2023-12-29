@@ -1,5 +1,5 @@
-#ifndef EPD_NEWS_H
-#define EPD_NEWS_H
+#ifndef NEWS_H
+#define NEWS_H
 
 struct news_item {
 	char *title;
@@ -7,10 +7,8 @@ struct news_item {
 
 void news_init(void);
 
-void news_update(void);
-
 struct news_item * news_local_get(void);
 
 struct news_item * news_world_get(void);
 
-#endif
+#endif /* NEWS_H */

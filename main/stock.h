@@ -1,5 +1,5 @@
-#ifndef EPD_STOCK_H
-#define EPD_STOCK_H
+#ifndef STOCK_H
+#define STOCK_H
 
 struct stock_item {
 	char *name;
@@ -11,7 +11,9 @@ struct stock_item {
 };
 
 void stock_init(void);
+
 void stock_update(void);
+
 struct stock_item *stock_get_item(void);
 
-#endif
+#endif /* STOCK_H */

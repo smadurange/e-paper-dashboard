@@ -1,5 +1,5 @@
-#ifndef EPD_GUI_H
-#define EPD_GUI_H
+#ifndef GUI_H
+#define GUI_H
 
 #include "scrn.h"
 #include "stock.h"
@@ -18,4 +18,4 @@ int gui_draw_str(struct scrn *sc, const char *s, int x0, int y0, int x_max, int 
 
 void gui_plot_stocks(struct scrn *sc, struct stock_item *data);
 
-#endif
+#endif /* GUI_H */

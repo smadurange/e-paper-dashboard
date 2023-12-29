@@ -1,5 +1,6 @@
 #include <freertos/FreeRTOS.h>
 
+#include <assert.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,7 +13,6 @@
 #include "stock.h"
 
 #define NAME_LEN 15
-#define PRICE_LEN 10
 #define TIMESERIES_LEN 30
 
 extern const char stock_cert_pem_start[] asm("_binary_stock_cert_pem_start");
@@ -46,6 +46,7 @@ static int prices_ref[] = {
 static const int names_len = sizeof(names) / sizeof(names[0]);
 
 static int stocks_i = 0;
+static int stocks_len = 0;
 static struct stock_item **stocks = NULL;
 
 static esp_err_t http_evt_handler(esp_http_client_event_t *evt)
@@ -106,82 +107,90 @@ static esp_err_t http_evt_handler(esp_http_client_event_t *evt)
 
 static inline void parse(char *s, char *name, int price)
 {
-	int i, j;
-	int price_col = -1, col_n = 0, row_n = 0;
+	int i;
+	int buflen = 10;
+	char buf[buflen];
 
-	static int idx;
+	int price_col = -1, col_n = 0, row_n = 0;
 
 	int price_min = INT_MAX;
 	int price_max = 0;
 
 	char *tag = "close";
-	char price_buf[PRICE_LEN] = {0};
 	
-	for (i = 0, j = 0; s[i] && s[i] != '\n'; i++) {
-		if (s[i] == ',') {
+	for (i = 0; *s && *s != '\n' && price_col < 0; s++) {
+		if (*s == ',') {
 			col_n++;
 			continue;
 		}
 
-		if (tag[j] && s[i] == tag[j]) {
-			j++;
-			if (!tag[j])
+		if (tag[i] && *s == tag[i]) {
+			i++;
+			if (!tag[i])
 				price_col = col_n;
 		} else
-			j = 0;
+			i = 0;
+	}
+
+	if (price_col < 0) {
+		ESP_LOGD(TAG, "string: \n%s", s);
+		ESP_LOGE(TAG, "could not locate column %s", tag);
+		return;
 	}
 
 	col_n = 0;
 
-	while (s[i]) {
-		if (s[i] == ',') {
-			i++;
+	while (*s && row_n < TIMESERIES_LEN) {
+		if (*s == ',') {
+			s++;
 			col_n++;
 			continue;
 		}
 
-		if (s[i] == '\n') {
-			i++;
+		if (*s == '\n') {
+			s++;
 			col_n = 0;
 			continue;
 		}
 
-		if (col_n == price_col) {
-			for (j = 0; s[i] && s[i] != ',' && s[i] != '\n' && j < PRICE_LEN; i++)
-				price_buf[j++] = s[i];
-			price_buf[j] = '\0';
-
-			if (row_n == 0)
-				snprintf(stocks[idx]->name, NAME_LEN, "%s: %s", name, price_buf);
-
-			if (row_n < TIMESERIES_LEN) {
-				int price = (int) (atof(price_buf) * 100);
-				if (price < price_min)
-					price_min = price;
-				if (price > price_max)
-					price_max = price;
-
-				// csv arranges data in reverse chronological order
-				stocks[idx]->prices[TIMESERIES_LEN - 1 - row_n] = price;
-				row_n++;
-			}
-			else
-				break;
-		} else {
-			i++;
+		if (col_n != price_col) {
+			s++;
+			continue;
 		}
+
+		for (i = 0; *s && *s != ',' && *s != '\n' && i < buflen; i++, s++)
+			buf[i] = *s;
+		buf[i] = '\0';
+
+		if (row_n == 0)
+			snprintf(stocks[stocks_len]->name, NAME_LEN, "%s: %s", name, buf);
+
+		int price = (int) (atof(buf) * 100);
+		if (price < price_min)
+			price_min = price;
+		if (price > price_max)
+			price_max = price;
+
+		// csv arranges data in reverse chronological order
+		stocks[stocks_len]->prices[TIMESERIES_LEN - 1 - row_n] = price;
+		row_n++;
 	}
 
-	stocks[idx]->price_ref = price;
-	stocks[idx]->price_min = price_min;
-	stocks[idx]->price_max = price_max;
+	assert(row_n == TIMESERIES_LEN);
 
-	idx = (idx + 1) % names_len;
+	stocks[stocks_len]->price_ref = price;
+	stocks[stocks_len]->price_min = price_min;
+	stocks[stocks_len]->price_max = price_max;
+
+	stocks_len++;
 }
 
 void stock_update(void)
 {
 	esp_err_t rc;
+
+	stocks_i = 0;
+	stocks_len = 0;
 
 	for (int i = 0; i < names_len; i++) {
 		char *buf = NULL;
@@ -225,7 +234,7 @@ struct stock_item * stock_get_item(void)
 {
 	struct stock_item *item = NULL;
 
-	if (stocks_i < names_len) {
+	if (stocks_i < stocks_len) {
 		item = stocks[stocks_i];
 		stocks_i = (stocks_i + 1) % names_len;
 	}

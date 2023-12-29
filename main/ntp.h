@@ -5,4 +5,4 @@ void ntp_init(void);
 
 void ntp_sync(void);
 
-#endif
+#endif /* NTP_H */

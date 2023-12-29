@@ -22,7 +22,7 @@ void app_main(void)
 {
 	int prev_day;
 	time_t t;
-	char date[20];
+	char ts[20];
 	struct tm now;
 	struct scrn sc;
 	struct news_item *news;
@@ -51,13 +51,12 @@ void app_main(void)
 	for (;;) {
 		t = time(NULL);
 		now = *localtime(&t);
+		strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &now);
 
 		if (prev_day != now.tm_mday) {
-			news_update();
 			stock_update();
 			prev_day = now.tm_mday;
-			strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", &now);
-			ESP_LOGI(TAG, "updated news and stock data at %s", date);
+			ESP_LOGI(TAG, "updated stock data feed at %s", ts);
 		}
 
 		gui_draw_layout(&sc);
@@ -82,6 +81,8 @@ void app_main(void)
 		epd_draw(sc.fb, MAXLEN);
 		vTaskDelay(500 / portTICK_PERIOD_MS);	
 		epd_sleep();
-		vTaskDelay(30 * 60 * 1000 / portTICK_PERIOD_MS);	
+
+		ESP_LOGI(TAG, "last updated at %s", ts);
+		vTaskDelay(20 * 60 * 1000 / portTICK_PERIOD_MS);	
 	}
 }

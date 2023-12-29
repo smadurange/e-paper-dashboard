@@ -19,4 +19,4 @@ void scrn_clear(struct scrn *sc);
 
 void scrn_draw(struct scrn *sc, struct sprite *s);
 
-#endif
+#endif /* SCRN_H */

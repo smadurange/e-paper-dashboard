@@ -1,7 +1,13 @@
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
+#include <freertos/semphr.h>
+#include <freertos/event_groups.h>
 
 #include <stdlib.h>
 #include <string.h>
+
+#include <time.h>
 
 #include <esp_log.h>
 #include <esp_tls.h>
@@ -11,11 +17,19 @@
 #include "news.h"
 
 #define MAXLEN 12
+#define NEWS_FEED_UPDATED_BIT  BIT0
+#define MUTEX_TIMEOUT ((TickType_t) 5000 / portTICK_PERIOD_MS)
 
 extern const char news_cert_pem_start[] asm("_binary_news_cert_pem_start");
 extern const char news_cert_pem_end[]   asm("_binary_news_cert_pem_end");
 
 static const char* TAG = "news";
+
+static QueueHandle_t news_evt_queue;
+static SemaphoreHandle_t mutex;
+
+static EventGroupHandle_t news_evt_group;
+
 static esp_http_client_handle_t http_client;
 
 static int news_local_i = 0;
@@ -119,13 +133,18 @@ start:
 
 static inline void delete(struct news_item **news, int *news_len, int *news_i)
 {
-	for (int i = 0; i < *news_len; i++) {
-		free(news[i]->title);
-		free(news[i]);
-	}
+	if (xSemaphoreTake(mutex, MUTEX_TIMEOUT) == pdTRUE) {
+		for (int i = 0; i < *news_len; i++) {
+			free(news[i]->title);
+			free(news[i]);
+		}
 
-	*news_i = 0;
-	*news_len = 0;
+		*news_i = 0;
+		*news_len = 0;
+
+		xSemaphoreGive(mutex);
+	} else
+		ESP_LOGE(TAG, "delete() failed to acquire semaphore");
 }
 
 static inline void parse(char *xml, struct news_item **news, int *news_len, int *news_i)
@@ -144,27 +163,31 @@ static inline void parse(char *xml, struct news_item **news, int *news_len, int 
 	search(s, "<title>", "</title>", &i, &j);
 	s += j + 1;
 
-	for (*news_len = 0; *news_len < MAXLEN; (*news_len)++) {
-		rc = search(s, "<title>", "</title>", &i, &j);
-		if (rc > 0) {
-			item = malloc(sizeof(struct news_item));
-			if (!item) {
-				ESP_LOGE(TAG, "malloc() failed for news item");
-				break;
-			}
+	if (xSemaphoreTake(mutex, MUTEX_TIMEOUT) == pdTRUE) {
+		for (*news_len = 0; *news_len < MAXLEN; (*news_len)++) {
+			rc = search(s, "<title>", "</title>", &i, &j);
+			if (rc > 0) {
+				item = malloc(sizeof(struct news_item));
+				if (!item) {
+					ESP_LOGE(TAG, "malloc() failed for news item");
+					break;
+				}
 
-			item->title = malloc(sizeof(char) * (j - i + 2));
-			if (!item->title) {
-				ESP_LOGE(TAG, "malloc() failed for title");
-				free(item);
-				break;
+				item->title = malloc(sizeof(char) * (j - i + 2));
+				if (!item->title) {
+					ESP_LOGE(TAG, "malloc() failed for title");
+					free(item);
+					break;
+				}
+				
+				copy(s, item->title, i, j);
+				s += j + 1;
+				news[*news_len] = item;
 			}
-			
-			copy(s, item->title, i, j);
-			s += j + 1;
-			news[*news_len] = item;
 		}
-	}
+		xSemaphoreGive(mutex);
+	} else
+		ESP_LOGE(TAG, "parse() failed to acquire semaphore");
 }
 
 static esp_err_t http_evt_handler(esp_http_client_event_t *evt)
@@ -227,10 +250,14 @@ struct news_item * news_local_get(void)
 {
 	struct news_item *item = NULL;
 
-	if (news_local_i < news_local_len) {
-		item = news_local[news_local_i];
-		news_local_i = (news_local_i + 1) % news_local_len;
-	}
+	if (xSemaphoreTake(mutex, MUTEX_TIMEOUT) == pdTRUE) {
+		if (news_local_i < news_local_len) {
+			item = news_local[news_local_i];
+			news_local_i = (news_local_i + 1) % news_local_len;
+		}
+		xSemaphoreGive(mutex);
+	} else
+		ESP_LOGE(TAG, "news_local_get() failed to acquire semaphore");
 
 	return item;
 }
@@ -239,50 +266,74 @@ struct news_item * news_world_get(void)
 {
 	struct news_item *item = NULL;
 
-	if (news_world_i < news_world_len) {
-		item = news_world[news_world_i];
-		news_world_i = (news_world_i + 1) % news_world_len;
-	}
+	if (xSemaphoreTake(mutex, MUTEX_TIMEOUT) == pdTRUE) {
+		if (news_world_i < news_world_len) {
+			item = news_world[news_world_i];
+			news_world_i = (news_world_i + 1) % news_world_len;
+		}
+		xSemaphoreGive(mutex);
+	} else
+		ESP_LOGE(TAG, "news_world_get() failed to acquire semaphore");
 
 	return item;
 }
 
-void news_update(void)
+void news_update_task(void *arg)
 {
 	char *buf;
+	time_t t;
+	char ts[20];
+	struct tm now;
 	esp_err_t rc;
 
-	buf = NULL;
-	esp_http_client_set_user_data(http_client, &buf);
+	for (;;) {
+		buf = NULL;
+		esp_http_client_set_user_data(http_client, &buf);
 
-	// local news
-	esp_http_client_set_url(http_client, "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=10416");
-	for(;;) {
-		rc = esp_http_client_perform(http_client);
-		if (rc != ESP_ERR_HTTP_EAGAIN)
-			break;
-		vTaskDelay((TickType_t) 100 / portTICK_PERIOD_MS);
+		// local news
+		esp_http_client_set_url(http_client, "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=10416");
+		for(;;) {
+			rc = esp_http_client_perform(http_client);
+			if (rc != ESP_ERR_HTTP_EAGAIN)
+				break;
+			vTaskDelay((TickType_t) 100 / portTICK_PERIOD_MS);
+		}
+
+		parse(buf, news_local, &news_local_len, &news_local_i);
+		free(buf);
+		buf = NULL;
+
+		// world news
+		esp_http_client_set_url(http_client, "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6311");
+		for(;;) {
+			rc = esp_http_client_perform(http_client);
+			if (rc != ESP_ERR_HTTP_EAGAIN)
+				break;
+			vTaskDelay((TickType_t) 100 / portTICK_PERIOD_MS);
+		}
+
+		parse(buf, news_world, &news_world_len, &news_world_i);
+		free(buf);
+
+		t = time(NULL);
+		now = *localtime(&t);
+		strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &now);
+		ESP_LOGI(TAG, "updated news feed at %s", ts);
+		xEventGroupSetBits(news_evt_group, NEWS_FEED_UPDATED_BIT);
+
+		vTaskDelay(60 * 60 * 1000 / portTICK_PERIOD_MS);	
 	}
-
-	parse(buf, news_local, &news_local_len, &news_local_i);
-	free(buf);
-	buf = NULL;
-
-	// world news
-	esp_http_client_set_url(http_client, "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6311");
-	for(;;) {
-		rc = esp_http_client_perform(http_client);
-		if (rc != ESP_ERR_HTTP_EAGAIN)
-			break;
-		vTaskDelay((TickType_t) 100 / portTICK_PERIOD_MS);
-	}
-
-	parse(buf, news_world, &news_world_len, &news_world_i);
-	free(buf);
 }
 
 void news_init(void)
 {
+	if((mutex = xSemaphoreCreateMutex()) == NULL) {
+		ESP_LOGE(TAG, "xSemaphoreCreateMutex() failed");
+		return;
+	}
+
+	news_evt_group = xEventGroupCreate();
+
 	esp_http_client_config_t conf = {
 		.url = "https://www.channelnewsasia.com",
 		.is_async = true,
@@ -295,5 +346,12 @@ void news_init(void)
 	http_client = esp_http_client_init(&conf);
 	esp_http_client_set_header(http_client, "Accept", "application/rss+xml");
 
-	news_update();
+	news_evt_queue = xQueueCreate(1, sizeof(int));
+	xTaskCreate(news_update_task, "news_update_task", 4096, NULL, 10, NULL);	
+
+	xEventGroupWaitBits(news_evt_group,
+	                    NEWS_FEED_UPDATED_BIT,
+	                    pdFALSE,
+	                    pdFALSE,
+	                    portMAX_DELAY);
 }

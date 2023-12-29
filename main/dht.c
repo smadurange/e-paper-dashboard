@@ -2,6 +2,7 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 #include <freertos/queue.h>
+#include <freertos/event_groups.h>
 
 #include <stdio.h>
 #include <esp_log.h>
@@ -11,6 +12,7 @@
 #include "dht.h"
 
 #define DHT_DATA_LEN     40
+#define DHT_DATA_BIT   BIT0
 #define DHT_PIN GPIO_NUM_19
 
 #define MUTEX_TIMEOUT ((TickType_t) 5000 / portTICK_PERIOD_MS)
@@ -18,6 +20,8 @@
 static const char *TAG = "dht";
 
 static int temp, humid;
+
+static EventGroupHandle_t dht_evt_group;
 
 static QueueHandle_t dht_evt_queue;
 static SemaphoreHandle_t mutex;
@@ -164,7 +168,7 @@ void dht_read_task(void *arg)
 			rh = dht_decode_data(data[0], data[1]);
 			tc = dht_decode_data(data[2], data[3]);
 
-			ESP_LOGI(TAG, "temperature: %dC, humidity: %d%%", tc, rh);
+			ESP_LOGD(TAG, "temperature: %dC, humidity: %d%%", tc, rh);
 
 			if (xSemaphoreTake(mutex, MUTEX_TIMEOUT) == pdTRUE) {
 				temp = tc;
@@ -175,7 +179,8 @@ void dht_read_task(void *arg)
 			}
 		}
 
-		vTaskDelay(2 * 60 * 1000 / portTICK_PERIOD_MS);	
+		xEventGroupSetBits(dht_evt_group, DHT_DATA_BIT);
+		vTaskDelay(5 * 60 * 1000 / portTICK_PERIOD_MS);	
 	}
 }
 
@@ -185,6 +190,8 @@ void dht_init(void)
 		ESP_LOGE(TAG, "xSemaphoreCreateMutex() failed");
 		return;
 	}
+
+	dht_evt_group = xEventGroupCreate();
 
 	gpio_config_t io_conf = {};	
 	io_conf.pin_bit_mask = 1ULL << DHT_PIN;
@@ -197,6 +204,12 @@ void dht_init(void)
 	dht_evt_queue = xQueueCreate(1, sizeof(int));
 	xTaskCreate(dht_err_task, "dht_err_task", 4096, NULL, 10, NULL);	
 	xTaskCreate(dht_read_task, "dht_read_task", 4096, NULL, 10, NULL);	
+
+	xEventGroupWaitBits(dht_evt_group,
+	                    DHT_DATA_BIT,
+	                    pdFALSE,
+	                    pdFALSE,
+	                    portMAX_DELAY);
 }
 
 static inline void dht_ntos(int n, char s[5])
