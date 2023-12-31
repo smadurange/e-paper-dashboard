@@ -1025,100 +1025,183 @@ static inline void gui_draw_panel_data(struct scrn *sc, char *s, int x)
 	struct sprite sp;
 
 	sp.offset_y = 415;
+	sp.height = font_40_height;;
 
 	for (sp.offset_x = x; *s; s++) {
 		switch (*s) {
 		case '0':
 			sp.bmp = char_0_40_bmp;
 			sp.width = char_num_40_width;
-			sp.height = char_num_40_height;
 			break;
 		case '1':
 			sp.bmp = char_1_40_bmp;
 			sp.width = char_num_40_width;
-			sp.height = char_num_40_height;
 			break;
 		case '2':
 			sp.bmp = char_2_40_bmp;
 			sp.width = char_num_40_width;
-			sp.height = char_num_40_height;
 			break;
 		case '3':
 			sp.bmp = char_3_40_bmp;
 			sp.width = char_num_40_width;
-			sp.height = char_num_40_height;
 			break;
 		case '4':
 			sp.bmp = char_4_40_bmp;
 			sp.width = char_num_40_width;
-			sp.height = char_num_40_height;
 			break;
 		case '5':
 			sp.bmp = char_5_40_bmp;
 			sp.width = char_num_40_width;
-			sp.height = char_num_40_height;
 			break;
 		case '6':
 			sp.bmp = char_6_40_bmp;
 			sp.width = char_num_40_width;
-			sp.height = char_num_40_height;
 			break;
 		case '7':
 			sp.bmp = char_7_40_bmp;
 			sp.width = char_num_40_width;
-			sp.height = char_num_40_height;
 			break;
 		case '8':
 			sp.bmp = char_8_40_bmp;
 			sp.width = char_num_40_width;
-			sp.height = char_num_40_height;
 			break;
 		case '9':
 			sp.bmp = char_9_40_bmp;
 			sp.width = char_num_40_width;
-			sp.height = char_num_40_height;
 			break;
 		case '-':
 			sp.bmp = char_hyphen_40_bmp;
 			sp.width = char_hyphen_40_width;
-			sp.height = char_hyphen_40_height;
 			break;
 		case 'C':
 			sp.bmp = char_C_40_bmp;
 			sp.width = char_C_40_width;
-			sp.height = char_C_40_height;
 			break;
 		case '%':
 			sp.bmp = char_percent_40_bmp;
 			sp.width = char_percent_40_width;
-			sp.height = char_percent_40_height;
 			break;
 		case '.':
 			sp.bmp = char_period_40_bmp;
 			sp.width = char_period_40_width;
-			sp.height = char_period_40_height;
 			break;
 		case 248:
 			sp.bmp = char_degree_40_bmp;
 			sp.width = char_degree_40_width;
-			sp.height = char_degree_40_height;
+			break;
+		case 'J':
+			sp.bmp = char_J_40_bmp;
+			sp.width = char_J_40_width;
+			break;
+		case 'a':
+			sp.bmp = char_a_40_bmp;
+			sp.width = char_a_40_width;
+			break;
+		case 'n':
+			sp.bmp = char_n_40_bmp;
+			sp.width = char_n_40_width;
+			break;
+		case 'F':
+			sp.bmp = char_F_40_bmp;
+			sp.width = char_F_40_width;
+			break;
+		case 'e':
+			sp.bmp = char_e_40_bmp;
+			sp.width = char_e_40_width;
+			break;
+		case 'b':
+			sp.bmp = char_b_40_bmp;
+			sp.width = char_b_40_width;
+			break;
+		case 'M':
+			sp.bmp = char_M_40_bmp;
+			sp.width = char_M_40_width;
+			break;
+		case 'r':
+			sp.bmp = char_r_40_bmp;
+			sp.width = char_r_40_width;
+			break;
+		case 'A':
+			sp.bmp = char_A_40_bmp;
+			sp.width = char_A_40_width;
+			break;
+		case 'p':
+			sp.bmp = char_p_40_bmp;
+			sp.width = char_p_40_width;
+			break;
+		case 'y':
+			sp.bmp = char_y_40_bmp;
+			sp.width = char_y_40_width;
+			break;
+		case 'u':
+			sp.bmp = char_u_40_bmp;
+			sp.width = char_u_40_width;
+			break;
+		case 'l':
+			sp.bmp = char_l_40_bmp;
+			sp.width = char_l_40_width;
+			break;
+		case 'g':
+			sp.bmp = char_g_40_bmp;
+			sp.width = char_g_40_width;
+			break;
+		case 'S':
+			sp.bmp = char_S_40_bmp;
+			sp.width = char_S_40_width;
+			break;
+		case 'O':
+			sp.bmp = char_O_40_bmp;
+			sp.width = char_O_40_width;
+			break;
+		case 'c':
+			sp.bmp = char_c_40_bmp;
+			sp.width = char_c_40_width;
+			break;
+		case 't':
+			sp.bmp = char_t_40_bmp;
+			sp.width = char_t_40_width;
+			break;
+		case 'N':
+			sp.bmp = char_N_40_bmp;
+			sp.width = char_N_40_width;
+			break;
+		case 'o':
+			sp.bmp = char_o_40_bmp;
+			sp.width = char_o_40_width;
+			break;
+		case 'v':
+			sp.bmp = char_v_40_bmp;
+			sp.width = char_v_40_width;
+			break;
+		case 'D':
+			sp.bmp = char_D_40_bmp;
+			sp.width = char_D_40_width;
+			break;
+		case ':':
+			sp.bmp = char_colon_40_bmp;
+			sp.width = char_colon_40_width;
+			break;
+		case ' ':
 			break;
 		default:
-			ESP_LOGE(TAG, "Bottom panel: unknown character %c", *s);
-			return;
+			ESP_LOGE(TAG, "bottom panel: unknown character %c", *s);
+			break;
 		}
 
-		scrn_draw(sc, &sp);
-		sp.offset_x += sp.width;
+		if (*s != ' ') {
+			scrn_draw(sc, &sp);
+			sp.offset_x += sp.width;
+		} else
+			sp.offset_x += 15;
 	}
 }
 
 void gui_draw_date(struct scrn *sc, struct tm *now)
 {
-	char s[11];
+	char s[13];
 
-	if (strftime(s, sizeof(s), "%Y-%m-%d", now))
-		gui_draw_panel_data(sc, s, 50);
+	if (strftime(s, sizeof(s), "%b %d %H:%M", now))
+		gui_draw_panel_data(sc, s, 28);
 	else
 		ESP_LOGE(TAG, "strftime() failed for date");
 }
