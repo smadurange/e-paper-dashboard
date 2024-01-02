@@ -26,7 +26,7 @@ void app_main(void)
 	struct tm now;
 	struct scrn sc;
 	struct news_item *news;
-	struct stock_item *stock;
+	struct stock_item *stock = NULL;
 
 	ESP_ERROR_CHECK(nvs_flash_init());
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -56,7 +56,6 @@ void app_main(void)
 		if (prev_day != now.tm_mday) {
 			stock_update();
 			prev_day = now.tm_mday;
-			ESP_LOGI(TAG, "updated stock data feed at %s", ts);
 		}
 
 		gui_draw_layout(&sc);
@@ -64,9 +63,18 @@ void app_main(void)
 		gui_draw_humid(&sc);
 		gui_draw_date(&sc, &now);
 
-		stock = stock_get_item();
-		if (stock)
-			gui_plot_stocks(&sc, stock);
+		if (!stock) {
+			stock_update();
+			stock = stock_get_item();
+			if (stock) {
+				gui_plot_stocks(&sc, stock);
+				ESP_LOGI(TAG, "updated stock data at %s", ts);
+			}
+		} else {
+			stock = stock_get_item();
+			if (stock)
+				gui_plot_stocks(&sc, stock);
+		}
 
 		news = news_local_get();
 		if (news)
@@ -79,7 +87,7 @@ void app_main(void)
 		epd_wake();
 		vTaskDelay(500 / portTICK_PERIOD_MS);	
 		epd_draw(sc.fb, MAXLEN);
-		vTaskDelay(500 / portTICK_PERIOD_MS);	
+		vTaskDelay(2000 / portTICK_PERIOD_MS);	
 		epd_sleep();
 
 		ESP_LOGI(TAG, "last updated at %s", ts);

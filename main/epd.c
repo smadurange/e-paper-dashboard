@@ -128,7 +128,7 @@ static inline void reset(void)
 	vTaskDelay((TickType_t) 200 / portTICK_PERIOD_MS);
 
 	gpio_set_level(EPD_RST_PIN, 0);
-	vTaskDelay((TickType_t) 10 / portTICK_PERIOD_MS);
+	vTaskDelay((TickType_t) 2 / portTICK_PERIOD_MS);
 
 	gpio_set_level(EPD_RST_PIN, 1);
 	vTaskDelay((TickType_t) 200 / portTICK_PERIOD_MS);

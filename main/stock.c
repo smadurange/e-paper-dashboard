@@ -272,6 +272,4 @@ void stock_init(void)
 		stocks[i]->prices = malloc(sizeof(int) * TIMESERIES_LEN);
 		stocks[i]->prices_len = TIMESERIES_LEN;
 	}
-
-	stock_update();
 }
