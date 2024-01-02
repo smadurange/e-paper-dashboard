@@ -157,6 +157,8 @@ void epd_init(void)
 	ESP_ERROR_CHECK(gpio_set_direction(EPD_RST_PIN, GPIO_MODE_OUTPUT));
 	ESP_ERROR_CHECK(gpio_set_direction(EPD_BUSY_PIN, GPIO_MODE_INPUT));
 
+	vTaskDelay((TickType_t) 100 / portTICK_PERIOD_MS);
+
 	spi_bus_config_t bus_cfg = {
 		.miso_io_num = -1,
 		.mosi_io_num = EPD_MOSI_PIN,
@@ -271,42 +273,6 @@ void epd_draw(const unsigned char *buf, int n)
 		send_data(buf[i]);
 
 	refresh();
-}
-
-void epd_draw_async(const unsigned char *buf, int n)
-{
-	static spi_transaction_t t[3];
-
-	memset(&t[0], 0, sizeof(t[0]));	
-	t[0].length = 8;
-	t[0].tx_data[0] = 0x13;
-	t[0].user = (void*) 0; 
-	t[0].flags = SPI_TRANS_USE_TXDATA;
-
-	memset(&t[1], 0, sizeof(t[1]));	
-	t[1].length = 8 * n;
-	t[1].tx_buffer = buf;
-	t[1].user = (void*) 1; 
-
-	memset(&t[2], 0, sizeof(t[2]));	
-	t[2].length = 8;
-	t[2].tx_data[0] = 0x12;
-	t[2].user = (void*) 0; 
-	t[2].flags = SPI_TRANS_USE_TXDATA;
-
-	for (int i = 0; i < 3; i++)
-		spi_device_queue_trans(spi, &t[i], portMAX_DELAY);
-}
-
-void epd_draw_await(void)
-{
-	esp_err_t rc;
-	spi_transaction_t *t;
-
-	for (int i = 0; i < 3; i++) {
-		rc = spi_device_get_trans_result(spi, &t, portMAX_DELAY);
-		assert(rc == ESP_OK);
-	}
 }
 
 void epd_sleep(void)

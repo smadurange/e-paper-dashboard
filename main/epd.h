@@ -7,8 +7,6 @@
 void epd_init(void);
 void epd_clear(void);
 void epd_draw(const unsigned char *buf, int n);
-void epd_draw_async(const unsigned char *buf, int n);
-void epd_draw_await(void);
 void epd_wake(void);
 void epd_sleep(void);
 
