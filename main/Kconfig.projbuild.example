@@ -1,0 +1,129 @@
+menu "EPD Configuration"
+
+    config ESP_WIFI_SSID
+        string "WiFi SSID"
+        default ""
+        help
+            SSID (network name) for the example to connect to.
+
+    config ESP_WIFI_PASSWORD
+        string "WiFi Password"
+        default ""
+        help
+            WiFi password (WPA or WPA2) for the example to use.
+
+    config ESP_MAXIMUM_RETRY
+        int "Maximum retry count"
+        default 5
+        help
+            Set the Maximum retry to avoid station reconnecting to the AP unlimited when the AP is really inexistent.
+
+    config SNTP_TIME_SERVER
+        string "SNTP server name"
+        default "pool.ntp.org"
+        help
+            Hostname of the main SNTP server.
+
+    config STOCK_API_KEY
+        string "Stock data API key"
+        default ""
+        help
+            API key for the stock market data API.
+
+    config STOCK_SYM_1
+        string "Stock name"
+        default ""
+        help
+            Stock symbol.
+
+    config STOCK_SYM_2
+        string "Stock name"
+        default ""
+        help
+            Stock symbol.
+
+    config STOCK_SYM_3
+        string "Stock name"
+        default ""
+        help
+            Stock symbol.
+
+    config STOCK_SYM_4
+        string "Stock name"
+        default ""
+        help
+            Stock symbol.
+
+    config STOCK_SYM_5
+        string "Stock name"
+        default ""
+        help
+            Stock symbol.
+
+    config STOCK_SYM_6
+        string "Stock name"
+        default ""
+        help
+            Stock symbol.
+
+    config STOCK_SYM_7
+        string "Stock name"
+        default ""
+        help
+            Stock symbol.
+
+    config STOCK_SYM_8
+        string "Stock name"
+        default ""
+        help
+            Stock symbol.
+
+    config STOCK_PRICE_1
+        int "Stock price"
+        default 0
+        help
+            Stock price as an integer.
+
+    config STOCK_PRICE_2
+        int "Stock price"
+        default 0
+        help
+            Stock price as an integer.
+
+    config STOCK_PRICE_3
+        int "Stock price"
+        default 0
+        help
+            Stock price as an integer.
+
+    config STOCK_PRICE_4
+        int "Stock price"
+        default 0
+        help
+            Stock price as an integer.
+
+    config STOCK_PRICE_5
+        int "Stock price"
+        default 0
+        help
+            Stock price as an integer.
+
+    config STOCK_PRICE_6
+        int "Stock price"
+        default 0
+        help
+            Stock price as an integer.
+
+    config STOCK_PRICE_7
+        int "Stock price"
+        default 0
+        help
+            Stock price as an integer.
+
+    config STOCK_PRICE_8
+        int "Stock price"
+        default 0
+        help
+            Stock price as an integer.
+
+endmenu
