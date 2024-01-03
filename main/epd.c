@@ -157,8 +157,6 @@ void epd_init(void)
 	ESP_ERROR_CHECK(gpio_set_direction(EPD_RST_PIN, GPIO_MODE_OUTPUT));
 	ESP_ERROR_CHECK(gpio_set_direction(EPD_BUSY_PIN, GPIO_MODE_INPUT));
 
-	vTaskDelay((TickType_t) 100 / portTICK_PERIOD_MS);
-
 	spi_bus_config_t bus_cfg = {
 		.miso_io_num = -1,
 		.mosi_io_num = EPD_MOSI_PIN,

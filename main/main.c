@@ -53,17 +53,12 @@ void app_main(void)
 		now = *localtime(&t);
 		strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &now);
 
-		if (prev_day != now.tm_mday) {
-			stock_update();
-			prev_day = now.tm_mday;
-		}
-
 		gui_draw_layout(&sc);
 		gui_draw_temp(&sc);
 		gui_draw_humid(&sc);
 		gui_draw_date(&sc, &now);
 
-		if (!stock) {
+		if (!stock || prev_day != now.tm_mday) {
 			stock_update();
 			stock = stock_get_item();
 			if (stock) {
