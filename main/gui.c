@@ -919,13 +919,8 @@ void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 
 	int line_width = 3;
 
-	int price_min = data->price_ref < data->price_min
-	                    ? data->price_ref
-	                    : data->price_min;
-
-	int price_max = data->price_ref > data->price_max
-	                    ? data->price_ref
-	                    : data->price_max;
+	int price_min = data->price_min;
+	int price_max = data->price_max;
 
 	int x_step = col_n % data->prices_len >= data->prices_len / 2
 	                 ?  col_n / data->prices_len + 1
@@ -993,7 +988,14 @@ void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 
 	// reference line
 	int dash_len = 4;
-	int y_ref = row_n - (data->price_ref - price_min) * y_step;
+
+	int price_ref = data->price_ref;
+	if (price_ref < price_min)
+		price_ref = price_min;
+	else if (price_ref > price_max)
+		price_ref = price_max;
+
+	int y_ref = row_n - (price_ref - price_min) * y_step;
 	if (y_ref < 0)
 		y_ref = line_width - 1;
 	if (y_ref >= row_n)
