@@ -20,7 +20,7 @@ const static char *TAG = "app";
 
 void app_main(void)
 {
-	int prev_day;
+	int prev_day, ntp_rc;
 	time_t t;
 	char ts[20];
 	struct tm now;
@@ -38,17 +38,20 @@ void app_main(void)
 	wifi_connect();
 
 	ntp_init();
-	ntp_sync();
 	dht_init();
 	news_init();
 	stock_init();
 	epd_init();
 
+	ntp_rc = ntp_sync();
 	t = time(NULL);
 	now = *localtime(&t);
 	prev_day = now.tm_mday;
 
 	for (;;) {
+		if (!ntp_rc)
+			ntp_rc = ntp_sync();
+
 		t = time(NULL);
 		now = *localtime(&t);
 		strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &now);
@@ -58,7 +61,7 @@ void app_main(void)
 		gui_draw_humid(&sc);
 		gui_draw_date(&sc, &now);
 
-		if (!stock || prev_day != now.tm_mday) {
+		if (!stock || (ntp_rc && prev_day != now.tm_mday)) {
 			stock_update();
 			stock = stock_get_item();
 			if (stock) {
@@ -82,7 +85,7 @@ void app_main(void)
 		epd_wake();
 		vTaskDelay(500 / portTICK_PERIOD_MS);	
 		epd_draw(sc.fb, MAXLEN);
-		vTaskDelay(2000 / portTICK_PERIOD_MS);	
+		vTaskDelay(1000 / portTICK_PERIOD_MS);	
 		epd_sleep();
 
 		ESP_LOGI(TAG, "last updated at %s", ts);

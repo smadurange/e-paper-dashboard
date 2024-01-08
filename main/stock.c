@@ -84,6 +84,7 @@ static esp_err_t http_evt_handler(esp_http_client_event_t *evt)
 			read_len = 0;
 			ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
 			ESP_LOGD(TAG, "%s", *(char **) evt->user_data);
+			ESP_LOGD(TAG, "response status=%d", esp_http_client_get_status_code(evt->client));
 			break;
 		case HTTP_EVENT_DISCONNECTED:
 			ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");

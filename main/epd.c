@@ -109,17 +109,21 @@ static void send_data(unsigned char data)
 static inline void wait_until_idle(void)
 {
 	int busy;
+	int retry = 0, max_retry = 100;
 
-	ESP_LOGI(TAG, "busy...");
-
+	ESP_LOGI(TAG, "display busy...");
 	do {
+		if (retry >= max_retry) {
+			ESP_LOGE(TAG, "display is not responding");
+			return;
+		}
 		vTaskDelay((TickType_t) 20 / portTICK_PERIOD_MS);
 		send_cmd(0x71);
 		busy = gpio_get_level(EPD_BUSY_PIN);
 	} while (busy == 0);
 
 	vTaskDelay((TickType_t) 200 / portTICK_PERIOD_MS);
-	ESP_LOGI(TAG, "ready");
+	ESP_LOGI(TAG, "display ready");
 }
 
 static inline void reset(void)

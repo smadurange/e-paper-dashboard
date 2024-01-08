@@ -922,15 +922,20 @@ void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 	int price_min = data->price_min;
 	int price_max = data->price_max;
 
+	ESP_LOGD(TAG, "price min=%d, price max=%d", price_min, price_max);
+
 	int x_step = col_n % data->prices_len >= data->prices_len / 2
 	                 ?  col_n / data->prices_len + 1
 	                 : col_n / data->prices_len;
 	if (x_step == 0)
 		x_step = 1;
-	
-	int y_step = row_n / (price_max - price_min);
+
+	int dy = (price_max - price_min) / 100;
+	int y_step = dy != 0 ? row_n / dy : 0;
 	if (y_step == 0)
 		y_step = 1;
+
+	ESP_LOGD(TAG, "x-step=%d, y-step=%d", x_step, y_step);
 
 	int n = col_n * row_n / 8;
 	unsigned char *buf = malloc(sizeof(char) * n);
@@ -939,7 +944,7 @@ void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 		buf[i] = 0x0;
 
 	for (int i = 0, x = 0, y_prev = 0; i < data->prices_len && x < col_n; i++, x += x_step) {
-		int y = row_n - (data->prices[i] - price_min) * y_step;
+		int y = row_n - ((data->prices[i] - price_min) / 100) * y_step;
 		if (y < 0)
 			y = line_width - 1;
 		if (y >= row_n)

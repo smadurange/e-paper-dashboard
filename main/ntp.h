@@ -3,6 +3,6 @@
 
 void ntp_init(void);
 
-void ntp_sync(void);
+int ntp_sync(void);
 
 #endif /* NTP_H */
