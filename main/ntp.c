@@ -23,7 +23,7 @@ int ntp_sync(void)
 	int retry = 0;
 	const int retry_count = 15;
 
-	while (esp_netif_sntp_sync_wait(2000 / portTICK_PERIOD_MS) == ESP_ERR_TIMEOUT && ++retry < retry_count) {
+	while (esp_netif_sntp_sync_wait(2000 / portTICK_PERIOD_MS) == ESP_ERR_TIMEOUT) {
 		ESP_LOGI(TAG, "waiting for system time to be set... (%d/%d)", retry, retry_count);
 		if (++retry >= retry_count) {
 			ESP_LOGE(TAG, "Failed to sync system time");

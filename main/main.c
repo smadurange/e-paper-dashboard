@@ -20,13 +20,14 @@ const static char *TAG = "app";
 
 void app_main(void)
 {
-	int prev_day, ntp_rc;
 	time_t t;
 	char ts[20];
 	struct tm now;
 	struct scrn sc;
 	struct news_item *news;
 	struct stock_item *stock = NULL;
+
+	int ntp_rc = 0;
 
 	ESP_ERROR_CHECK(nvs_flash_init());
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -43,11 +44,6 @@ void app_main(void)
 	stock_init();
 	epd_init();
 
-	ntp_rc = ntp_sync();
-	t = time(NULL);
-	now = *localtime(&t);
-	prev_day = now.tm_mday;
-
 	for (;;) {
 		if (!ntp_rc)
 			ntp_rc = ntp_sync();
@@ -61,18 +57,9 @@ void app_main(void)
 		gui_draw_humid(&sc);
 		gui_draw_date(&sc, &now);
 
-		if (!stock || (ntp_rc && prev_day != now.tm_mday)) {
-			stock_update();
-			stock = stock_get_item();
-			if (stock) {
-				gui_plot_stocks(&sc, stock);
-				ESP_LOGI(TAG, "updated stock data at %s", ts);
-			}
-		} else {
-			stock = stock_get_item();
-			if (stock)
-				gui_plot_stocks(&sc, stock);
-		}
+		stock = stock_get_item();
+		if (stock)
+			gui_plot_stocks(&sc, stock);
 
 		news = news_local_get();
 		if (news)

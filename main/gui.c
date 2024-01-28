@@ -867,6 +867,8 @@ static inline void gui_set_char(struct sprite *sp, char c, int bold)
 		}
 		break;
 	default:
+		sp->bmp = NULL;
+		sp->width = 0;
 		ESP_LOGW(TAG, "unknown char: %c(%d)", c, c);
 		break;
 	}
@@ -884,19 +886,21 @@ int gui_draw_str(struct scrn *sc, const char *s, int x0, int y0, int x_max, int 
 	for (i = 0, x = x0, y = y0; s[i]; i++) {
 		if (s[i] != ' ') {
 			gui_set_char(&sp, s[i], bold);
-			if (sp.width + x < x_max) {
-				sp.offset_x = x;
-				sp.offset_y = y;
-				x += sp.width;
-			} else {
-				sp.offset_x = x0;
-				x = x0 + sp.width;
-				y += sp.height;
-				if (y > y_max)
-					return y;
-				sp.offset_y = y;
+			if (sp.width > 0) {
+				if (sp.width + x < x_max) {
+					sp.offset_x = x;
+					sp.offset_y = y;
+					x += sp.width;
+				} else {
+					sp.offset_x = x0;
+					x = x0 + sp.width;
+					y += sp.height;
+					if (y > y_max)
+						return y;
+					sp.offset_y = y;
+				}
+				scrn_draw(sc, &sp);
 			}
-			scrn_draw(sc, &sp);
 		} else {
 			x += space_width;
 		}
@@ -907,8 +911,6 @@ int gui_draw_str(struct scrn *sc, const char *s, int x0, int y0, int x_max, int 
 
 void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 {
-	struct sprite sp;
-
 	int x_min = 18, x_max = 310;
 	int y_min = 92, y_max = 356;
 
@@ -922,8 +924,6 @@ void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 	int price_min = data->price_min;
 	int price_max = data->price_max;
 
-	ESP_LOGD(TAG, "price min=%d, price max=%d", price_min, price_max);
-
 	int x_step = col_n % data->prices_len >= data->prices_len / 2
 	                 ?  col_n / data->prices_len + 1
 	                 : col_n / data->prices_len;
@@ -931,17 +931,10 @@ void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 		x_step = 1;
 
 	int dy = (price_max - price_min) / 100;
+
 	int y_step = dy != 0 ? row_n / dy : 0;
 	if (y_step == 0)
 		y_step = 1;
-
-	ESP_LOGD(TAG, "x-step=%d, y-step=%d", x_step, y_step);
-
-	int n = col_n * row_n / 8;
-	unsigned char *buf = malloc(sizeof(char) * n);
-
-	for (int i = 0; i < n; i++)
-		buf[i] = 0x0;
 
 	for (int i = 0, x = 0, y_prev = 0; i < data->prices_len && x < col_n; i++, x += x_step) {
 		int y = row_n - ((data->prices[i] - price_min) / 100) * y_step;
@@ -950,28 +943,20 @@ void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 		if (y >= row_n)
 			y = row_n - 1;
 
-		ESP_LOGD(TAG, "price=%d, ref=%d, x=%d, y=%d, x_max=%d, y_max=%d",
-		              data->prices[i],
-		              data->price_ref,
-		              x,
-		              y,
-		              col_n,
-		              row_n);
-
 		// vertical step
 		if (x > 0) {
 			if (y_prev < y) {
 				for (int k = y_prev - line_width + 1; k <= y; k++) {
 					for (int j = x - line_width / 2, c = 0; c < line_width; j++, c++) {
-						int px = k * col_n + j;
-						buf[px / 8] |= (1ULL << (7 - px % 8));
+						int px = (k + y_min) * sc->width + (j + x_min);
+						sc->fb[px / 8] |= (1ULL << (7 - px % 8));
 					}
 				}
 			} else if (y_prev > y) {
 				for (int k = y_prev; k > y - line_width; k--) {
 					for (int j = x - line_width / 2, c = 0; c < line_width; j++, c++) {
-						int px = k * col_n + j;
-						buf[px / 8] |= (1ULL << (7 - px % 8));
+						int px = (k + y_min) * sc->width + (j + x_min);
+						sc->fb[px / 8] |= (1ULL << (7 - px % 8));
 					}
 				}
 			}
@@ -980,8 +965,8 @@ void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 		// horizontal step
 		for (int j = x; j < x + x_step; j++) {
 			for (int k = y, c = 0; c < line_width; k--, c++) {
-				int px = k * col_n + j;
-				buf[px / 8] |= (1ULL << (7 - px % 8));
+				int px = (k + y_min) * sc->width + (j + x_min);
+				sc->fb[px / 8] |= (1ULL << (7 - px % 8));
 			}
 		}
 		
@@ -1010,21 +995,12 @@ void gui_plot_stocks(struct scrn *sc, struct stock_item *data)
 		if (i % 2 == 0) {
 			for (int j = x; j < x + dash_len; j++) {
 				for (int k = y_ref, c = 0; c < line_width; k--, c++) {
-					int px = k * col_n + j;
-					buf[px / 8] |= (1ULL << (7 - px % 8));
+					int px = (k + y_min) * sc->width + (j + x_min);
+					sc->fb[px / 8] |= (1ULL << (7 - px % 8));
 				}
 			}
 		}
 	}
-
-	sp.width = col_n;
-	sp.height = row_n;
-	sp.offset_x = x_min;
-	sp.offset_y = y_min;
-	sp.bmp = buf;
-
-	scrn_draw(sc, &sp);
-	free(buf);
 }
 
 static inline void gui_draw_panel_data(struct scrn *sc, char *s, int x)

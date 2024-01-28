@@ -12,7 +12,7 @@ struct sprite {
 	int height;
 	int offset_x;
 	int offset_y;
-	const unsigned char *bmp;
+	unsigned char *bmp;
 };
 
 void scrn_clear(struct scrn *sc);

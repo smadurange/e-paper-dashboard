@@ -35,7 +35,7 @@ with open(dst, "w") as o:
         print("Image={}, size={}x{}".format(src, width, height))
     
         if i == 0:
-            o.write("const int font_{0}_height = {1};\n\n".format(font_size, height))
+            o.write("int font_{0}_height = {1};\n\n".format(font_size, height))
             
         subprocess.run(["convert", src, "-threshold", "80%", "mon.jpg"])
         subprocess.run(["convert", "mon.jpg", "-depth", "1", "-format", "'txt'", "mon.txt"])
@@ -48,8 +48,8 @@ with open(dst, "w") as o:
         res = width * height
         image_size = (res // 8) + (res % 8 > 0) 
     
-        o.write("const int {0}_width = {1};\n\n".format(id, width))
-        o.write("const unsigned char {0}_bmp[{1}] = {{\n\t".format(id, image_size))
+        o.write("int {0}_width = {1};\n\n".format(id, width))
+        o.write("unsigned char {0}_bmp[{1}] = {{\n\t".format(id, image_size))
         
         with open("mon.txt", "r") as fd:
             fd.readline()

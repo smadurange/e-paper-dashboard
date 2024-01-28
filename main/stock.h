@@ -12,8 +12,6 @@ struct stock_item {
 
 void stock_init(void);
 
-void stock_update(void);
-
 struct stock_item *stock_get_item(void);
 
 #endif /* STOCK_H */

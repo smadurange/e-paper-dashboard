@@ -14,6 +14,7 @@
 
 #define NAME_LEN 15
 #define TIMESERIES_LEN 30
+#define URL "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=%s&apikey=%s&datatype=csv"
 
 extern const char stock_cert_pem_start[] asm("_binary_stock_cert_pem_start");
 extern const char stock_cert_pem_end[]   asm("_binary_stock_cert_pem_end");
@@ -186,66 +187,57 @@ static inline void parse(char *s, char *name, int price)
 	stocks_len++;
 }
 
-void stock_update(void)
+void stock_update(int i)
 {
 	esp_err_t rc;
 
-	stocks_i = 0;
-	stocks_len = 0;
+	char *buf = NULL;
+	esp_http_client_set_user_data(http_client, &buf);	
 
-	for (int i = 0; i < names_len; i++) {
-		char *buf = NULL;
-		esp_http_client_set_user_data(http_client, &buf);	
+	int urllen = snprintf(NULL, 0, URL, names[i], CONFIG_STOCK_API_KEY) + 1;
 
-		int urllen = snprintf(NULL,
-		                      0,
-		                      "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=%s&apikey=%s&datatype=csv",
-		                      names[i],
-		                      CONFIG_STOCK_API_KEY) + 1;
-
-		char *url = malloc(sizeof(char) * urllen);
-		if (!url) {
-			ESP_LOGE(TAG, "malloc() failed for URL");
-			return;
-		}
-
-		snprintf(url,
-		         urllen,
-		         "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=%s&apikey=%s&datatype=csv",
-		         names[i],
-		         CONFIG_STOCK_API_KEY);
-
-		esp_http_client_set_url(http_client, url);	
-
-		for(;;) {
-			rc = esp_http_client_perform(http_client);
-			if (rc != ESP_ERR_HTTP_EAGAIN)
-				break;
-			vTaskDelay((TickType_t) 100 / portTICK_PERIOD_MS);
-		}
-
-		parse(buf, names[i], prices_ref[i]);
-
-		free(url);
-		free(buf);
+	char *url = malloc(sizeof(char) * urllen);
+	if (!url) {
+		ESP_LOGE(TAG, "malloc() failed for URL");
+		return;
 	}
+
+	snprintf(url, urllen, URL, names[i], CONFIG_STOCK_API_KEY);
+	esp_http_client_set_url(http_client, url);	
+
+	for(;;) {
+		rc = esp_http_client_perform(http_client);
+		if (rc != ESP_ERR_HTTP_EAGAIN)
+			break;
+		vTaskDelay((TickType_t) 100 / portTICK_PERIOD_MS);
+	}
+
+	parse(buf, names[i], prices_ref[i]);
+
+	free(url);
+	free(buf);
 }
 
 struct stock_item * stock_get_item(void)
 {
 	struct stock_item *item = NULL;
 
+	if (stocks_len < names_len) {
+		stock_update(stocks_len);
+	}
+
 	if (stocks_i < stocks_len) {
 		item = stocks[stocks_i];
 		stocks_i = (stocks_i + 1) % names_len;
 	}
+
 	return item;
 }
 
 void stock_init(void)
 {
 	esp_http_client_config_t conf = {
-		.url = "https://www.alphavantage.co/query",
+		.url = URL,
 		.is_async = true,
 		.timeout_ms = 5000,
 		.event_handler = http_evt_handler,

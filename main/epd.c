@@ -14,6 +14,7 @@
 #define EPD_DC_PIN     GPIO_NUM_27
 #define EPD_RST_PIN    GPIO_NUM_26
 #define EPD_CLK_PIN    GPIO_NUM_13
+#define EPD_PWR_PIN    GPIO_NUM_16
 #define EPD_MOSI_PIN   GPIO_NUM_14
 #define EPD_BUSY_PIN   GPIO_NUM_25
 
@@ -109,14 +110,9 @@ static void send_data(unsigned char data)
 static inline void wait_until_idle(void)
 {
 	int busy;
-	int retry = 0, max_retry = 100;
 
 	ESP_LOGI(TAG, "display busy...");
 	do {
-		if (retry >= max_retry) {
-			ESP_LOGE(TAG, "display is not responding");
-			return;
-		}
 		vTaskDelay((TickType_t) 20 / portTICK_PERIOD_MS);
 		send_cmd(0x71);
 		busy = gpio_get_level(EPD_BUSY_PIN);
@@ -150,6 +146,7 @@ void epd_init(void)
 {
 	gpio_config_t io_cfg = {
 		.pin_bit_mask = ((1ULL << EPD_DC_PIN) |
+		                (1ULL << EPD_PWR_PIN) |
 		                (1ULL << EPD_RST_PIN) |
 		                (1ULL << EPD_BUSY_PIN)),
 		.pull_up_en = true
@@ -158,8 +155,11 @@ void epd_init(void)
 	ESP_ERROR_CHECK(gpio_config(&io_cfg));
 
 	ESP_ERROR_CHECK(gpio_set_direction(EPD_DC_PIN, GPIO_MODE_OUTPUT));
+	ESP_ERROR_CHECK(gpio_set_direction(EPD_PWR_PIN, GPIO_MODE_OUTPUT));
 	ESP_ERROR_CHECK(gpio_set_direction(EPD_RST_PIN, GPIO_MODE_OUTPUT));
 	ESP_ERROR_CHECK(gpio_set_direction(EPD_BUSY_PIN, GPIO_MODE_INPUT));
+
+	gpio_set_level(EPD_PWR_PIN, 1);
 
 	spi_bus_config_t bus_cfg = {
 		.miso_io_num = -1,
